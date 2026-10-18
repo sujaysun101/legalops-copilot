@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { CONTRACT_TEXT_MAX, CONTRACT_TEXT_MIN } from "@/lib/contract-limits";
 
 interface Risk {
   clause: string;
@@ -28,6 +29,7 @@ export default function Home() {
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   async function analyze() {
     if (!contractText.trim()) return;
@@ -54,7 +56,16 @@ export default function Home() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => setContractText(ev.target?.result as string);
+    reader.onload = (ev) => {
+      const text = typeof ev.target?.result === "string" ? ev.target.result : "";
+      if (text.length > CONTRACT_TEXT_MAX) {
+        setContractText(text.slice(0, CONTRACT_TEXT_MAX));
+        setNotice(`Only the first ${CONTRACT_TEXT_MAX.toLocaleString()} characters were loaded.`);
+      } else {
+        setContractText(text);
+        setNotice("");
+      }
+    };
     reader.readAsText(file);
   }
 
@@ -87,15 +98,24 @@ export default function Home() {
             />
           </div>
           <textarea
+            maxLength={CONTRACT_TEXT_MAX}
             placeholder="Or paste your contract text here..."
             className="w-full min-h-48 p-3 font-mono text-sm border rounded-lg resize-y focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={contractText}
-            onChange={(e) => setContractText(e.target.value)}
+            onChange={(e) => {
+              setContractText(e.target.value);
+              setNotice("");
+            }}
           />
+          <p className="text-xs text-slate-500">
+            {contractText.trim().length.toLocaleString()} / {CONTRACT_TEXT_MAX.toLocaleString()} characters
+            (minimum {CONTRACT_TEXT_MIN})
+          </p>
+          {notice && <p className="text-amber-700 text-sm">{notice}</p>}
           {error && <p className="text-red-600 text-sm">{error}</p>}
           <button
             onClick={analyze}
-            disabled={loading || !contractText.trim()}
+            disabled={loading || contractText.trim().length < CONTRACT_TEXT_MIN}
             className="w-full py-2.5 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? "Analyzing..." : "Analyze Contract"}
